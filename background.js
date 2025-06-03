@@ -1,36 +1,39 @@
 let scrollingTabs = {};
 
-chrome.action.onClicked.addListener(async (tab) => {
-  const tabId = tab.id;
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  const tabId = sender.tab.id;
 
-  if (!tabId) return;
-
-  const isScrolling = scrollingTabs[tabId] ?? false;
-
-  if (!isScrolling) {
+  if (message.command === "start"){
     scrollingTabs[tabId] = true;
 
-    await chrome.scripting.executeScript({
+    chrome.scripting.executeScript({
       target: { tabId },
-      func: () => {
+      func: (speed) => {
         if (!window.autoScrollInterval) {
           window.autoScrollInterval = setInterval(() => {
             window.scrollBy(0, 2);
-          }, 10);
+          }, speed);
         }
-      }
+      },
+      args: [message.speed]
     });
-    await chrome.action.setTitle({ tabId, title: "Stop Auto Scroll" });
-  } else {
+  }
+
+  if (message.command == "stop"){
     scrollingTabs[tabId] = false;
 
-    await chrome.scripting.executeScript({
+    chrome.scripting.executeScript({
       target: { tabId },
       func: () => {
         clearInterval(window.autoScrollInterval);
         window.autoScrollInterval = null;
       }
-    });
-    await chrome.action.setTitle({ tabId, title: "Start Auto Scroll" });
+    })
+  }
+
+  if (message.command === "getStatus"){
+    sendResponse({
+      isScrolling: scrollingTabs[tabId] ?? false
+    })
   }
 });
